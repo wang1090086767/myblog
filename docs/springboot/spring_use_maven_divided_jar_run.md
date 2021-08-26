@@ -85,3 +85,43 @@
 java  -Dspring.config.location=./application.yml -jar  demo-0.0.1-SNAPSHOT.jar
 ~~~
 
+## 4. SpringBoot 引用外部配置文件
+
+> 24.3 Application property files
+SpringApplication will load properties from application.properties files in the following locations and add them to the Spring Environment:
+A /config subdirectory of the current directory.
+The current directory
+A classpath /config package
+The classpath root
+The list is ordered by precedence (properties defined in locations higher in the list override those defined in lower locations).
+  
+> 这里说了四种方式可以把配置文件放到外部的。
+第一种是在jar包的同一目录下建一个config文件夹，然后把配置文件放到这个文件夹下；
+第二种是直接把配置文件放到jar包的同级目录；
+第三种在classpath下建一个config文件夹，然后把配置文件放进去；
+第四种是在classpath下直接放配置文件。
+
+**这四种方式的优先级是从一到四一次降低的。**
+
+所对应的 SpringBoot 源码如下：
+~~~ java
+
+#ConfigFileApplicationListener.java
+        private void load(Profile profile, DocumentFilterFactory filterFactory,
+                DocumentConsumer consumer) {
+            //getSearchLocations()默认返回：
+            //[./config/, file:./, classpath:/config/, classpath:/]
+            //即搜索这些路径下的文件
+            getSearchLocations().forEach((location) -> {
+                boolean isFolder = location.endsWith("/");
+                //getSearchNames()返回：application
+                Set<String> names = (isFolder ? getSearchNames() : NO_SEARCH_NAMES);
+                //跟入load(.....)
+                names.forEach(
+                        (name) -> load(location, name, profile, filterFactory, consumer));
+            });
+
+~~~
+
+默认SpringBoot 会扫描 jar 包所在目录的配置文件（properties 文件或 yml 文件）和 所在目录
+
