@@ -6,3 +6,6 @@
   - [vim](linux/linux_vim.md)
   - [vnc](linux/linux_vncserver.md)
   - [shell](linux/linux_shell.md)
+* mac
+  - [brew](mac/brew.md)
+  - [docker_gui](mac/docker_gui.md)
