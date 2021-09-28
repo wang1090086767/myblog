@@ -1,5 +1,17 @@
 
 # Nginx 配置记录
+
+配置通用 proxy.conf
+~~~
+        proxy_http_version 1.1;
+        proxy_read_timeout 3000;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+        proxy_set_header Host $http_host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Real-PORT $remote_port;
+        proxy_cache_methods POST;
+~~~
 ~~~
 worker_processes  1;
 events {
@@ -59,14 +71,7 @@ server {
 
         proxy_pass http://webssh.bplatform.demo:8888/;
         # handle ws request
-        proxy_http_version 1.1;
-        proxy_read_timeout 3000;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
-        proxy_set_header Host $http_host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Real-PORT $remote_port;
-        proxy_cache_methods POST;
+        include proxy.conf; #引用 proxy.conf
     }
 
 
