@@ -5,7 +5,8 @@
 - Ubuntu 20.04.3 LTS (GNU/Linux 5.4.0-77-generic x86_64)
 - Docker Docker version 20.10.7, build 20.10.7-0ubuntu1~20.04.1
 - apt 设置阿里云的镜像源(/etc/apt/sources.list)如下
-~~~
+
+~~~ shell
  ## Note, this file is written by cloud-init on first boot of an instance
 ## modifications made here will not survive a re-bundle.
 ## if you wish to make changes you can:
@@ -67,14 +68,16 @@ deb-src http://mirrors.cloud.aliyuncs.com/ubuntu focal-security universe
 # deb-src http://mirrors.cloud.aliyuncs.com/ubuntu focal-security multiverse
 deb http://archive.ubuntu.com/ubuntu/ bionic universe
 ~~~
+
 Docker 复用宿主机显示原理
 
 > 原理上可以把docker镜像看做一台没配显示器的电脑，程序可以运行，但是没地方显示。
 而linux目前的主流图像界面服务X11又支持 客户端/服务端（Client/Server）的工作模式
 只要在容器启动的时候，将 『unix:端口』或『主机名:端口』共享给docker,docker 就可以通过端口找到显示输出的地方，和linux系统共用显示
-   
+
 ### 安装 工具
-~~~
+
+~~~ bash
 sudo apt-get install x11-xserver-utils
 $ xhost +
 ~~~
@@ -82,6 +85,7 @@ $ xhost +
 ## Docker 镜像制作
 
 Dockerfile
+
 ~~~ dockerfile
 ## 准备运行时框架里的内容
 FROM alpine:3.11 as alpine
@@ -128,5 +132,3 @@ ENV PATH=$PATH:$JAVA_HOME/bin:$MAVEN_HOME/bin
 # 容器的入口命令为启动tomcat
 CMD /opt/tools/idea-IU-201.8743.12/bin/./idea.sh
 ~~~
-
-
