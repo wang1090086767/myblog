@@ -16,15 +16,15 @@ sudo apt-get install aptitude
 aptitude 命令解释
 aptitude install 包名=包的版本号  
 
-~~~ 
+~~~ bash
 
 Vnc4Server  分辨率修改
-~~~
+~~~ bash
 vncserver :1 -geometry 1920x1080 -depth 24
 ~~~
 
 VNC4Server的 ~/.vnc/xstartup 记录
-~~~
+~~~ bash
 #xsetroot -solid grey
 #vncconfig -iconic &
 #x-terminal-emulator -geometry 80x24+10+10 -ls -title "$VNCDESKTOP Desktop" &
@@ -48,5 +48,4 @@ xfc 桌面
     xfwm4 &
 ~~~
 
-阿里云文档链接
-https://help.aliyun.com/document_detail/59330.html?spm=a2c4g.11186623.6.607.39ca5c3e8LNu7a
+[阿里云文档链接](https://help.aliyun.com/document_detail/59330.html?spm=a2c4g.11186623.6.607.39ca5c3e8LNu7a)
