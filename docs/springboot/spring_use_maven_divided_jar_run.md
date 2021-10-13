@@ -3,73 +3,73 @@
 ## 1. 配置 pom 文件
 
 ~~~xml
-	<build>
-		<plugins>
-			<plugin>
-				<groupId>org.springframework.boot</groupId>
-				<artifactId>spring-boot-maven-plugin</artifactId>
-				<configuration>
-					<executable>true</executable>
+ <build>
+  <plugins>
+   <plugin>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-maven-plugin</artifactId>
+    <configuration>
+     <executable>true</executable>
 <!--					<mainClass>cn.it.ProducerApplication</mainClass>-->
-					<layout>ZIP</layout>
-					<includes>
-						<include>
-							<groupId>nothing</groupId>
-							<artifactId>nothing</artifactId>
-						</include>
-					</includes>
-				</configuration>
-				<executions>
-					<execution>
-						<goals>
-							<goal>repackage</goal>
-						</goals>
-					</execution>
-				</executions>
+     <layout>ZIP</layout>
+     <includes>
+      <include>
+       <groupId>nothing</groupId>
+       <artifactId>nothing</artifactId>
+      </include>
+     </includes>
+    </configuration>
+    <executions>
+     <execution>
+      <goals>
+       <goal>repackage</goal>
+      </goals>
+     </execution>
+    </executions>
 
-			</plugin>
+   </plugin>
 
-			<!-- 指定启动类，将依赖打成外部jar包 -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-jar-plugin</artifactId>
-				<configuration>
-					<archive>
-						<!-- 生成的jar中，不要包含pom.xml和pom.properties这两个文件 -->
-						<addMavenDescriptor>false</addMavenDescriptor>
-						<manifest>
-							<!-- 是否要把第三方jar加入到类构建路径 -->
-							<addClasspath>true</addClasspath>
-							<!-- 外部依赖jar包的最终位置 -->
-							<classpathPrefix>lib/</classpathPrefix>
-							<!-- 项目启动类 -->
+   <!-- 指定启动类，将依赖打成外部jar包 -->
+   <plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-jar-plugin</artifactId>
+    <configuration>
+     <archive>
+      <!-- 生成的jar中，不要包含pom.xml和pom.properties这两个文件 -->
+      <addMavenDescriptor>false</addMavenDescriptor>
+      <manifest>
+       <!-- 是否要把第三方jar加入到类构建路径 -->
+       <addClasspath>true</addClasspath>
+       <!-- 外部依赖jar包的最终位置 -->
+       <classpathPrefix>lib/</classpathPrefix>
+       <!-- 项目启动类 -->
 <!--							<mainClass>com.mozi.mq_monitor.MqMonitorApplication</mainClass>-->
-						</manifest>
-					</archive>
-				</configuration>
-			</plugin>
-			<!--拷贝依赖到jar外面的lib目录-->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-dependency-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>copy-lib</id>
-						<phase>package</phase>
-						<goals>
-							<goal>copy-dependencies</goal>
-						</goals>
-						<configuration>
-							<outputDirectory>target/lib</outputDirectory>
-							<excludeTransitive>false</excludeTransitive>
-							<stripVersion>false</stripVersion>
-							<includeScope>compile</includeScope>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-		</plugins>
-	</build>
+      </manifest>
+     </archive>
+    </configuration>
+   </plugin>
+   <!--拷贝依赖到jar外面的lib目录-->
+   <plugin>
+    <groupId>org.apache.maven.plugins</groupId>
+    <artifactId>maven-dependency-plugin</artifactId>
+    <executions>
+     <execution>
+      <id>copy-lib</id>
+      <phase>package</phase>
+      <goals>
+       <goal>copy-dependencies</goal>
+      </goals>
+      <configuration>
+       <outputDirectory>target/lib</outputDirectory>
+       <excludeTransitive>false</excludeTransitive>
+       <stripVersion>false</stripVersion>
+       <includeScope>compile</includeScope>
+      </configuration>
+     </execution>
+    </executions>
+   </plugin>
+  </plugins>
+ </build>
 ~~~
 
 ## 2. 使用命令启动时添加参数
@@ -104,6 +104,7 @@ The list is ordered by precedence (properties defined in locations higher in the
 **这四种方式的优先级是从一到四一次降低的。**
 
 所对应的 SpringBoot 源码如下：
+
 ~~~ java
 
 #ConfigFileApplicationListener.java
@@ -124,4 +125,3 @@ The list is ordered by precedence (properties defined in locations higher in the
 ~~~
 
 默认SpringBoot 会扫描 jar 包所在目录的配置文件（properties 文件或 yml 文件）和 所在目录
-
