@@ -1,4 +1,5 @@
 # Linux 记录
+
 ## Linux环境
 
 > Ubuntu 20.04.2 LTS (GNU/Linux 5.4.0-77-generic x86_64)
@@ -7,7 +8,7 @@
 
 ### 1. 安装 desktop-ubuntu
 
-**如果遇到软件版本不满足，则可以使用 aptitude 进行降级**
+> **如果遇到软件版本不满足，则可以使用 aptitude 进行降级**
 
 ~~~
 安装 aptitude
@@ -24,6 +25,7 @@ vncserver :1 -geometry 1920x1080 -depth 24
 ~~~
 
 VNC4Server的 ~/.vnc/xstartup 记录
+
 ~~~ bash
 #xsetroot -solid grey
 #vncconfig -iconic &
