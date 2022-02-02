@@ -1,4 +1,4 @@
-# Go 语言学习
+# Go语言学习
 
 ## 1 Golang 的概述
 
@@ -12,7 +12,7 @@
 - Rob Pike（罗布·派克）： 加拿大人，曾是贝尔实验室的Unix团队和Plan 9操作计划的成员。他与Thompson公事多年，并共创出广泛使用的UTF-8字元编码。（ps：Go语言的图标-gopher 囊地鼠，是Rob Pike老婆制作的）
 - Robert Griesemer：曾协助制作Java的HotSpot编译器，和Chrom浏览器的JavaScript引擎V8.
 
-![image-20220105224634797](Go 语言学习.assets/image-20220105224634797-1394004.png)
+![image-20220105224634797](Golang_study.assets/image-20220105224634797-1394004.png)
 
 ### 1.3 Google为什么会创建 Golang？
 
@@ -346,7 +346,7 @@ var ptr *float32 = &a // 错误 类型不匹配
 
 在 Go 中，为了简化代码编译过程中对代码的解析，其定义的保留关键字只有**25** 个
 
-![image-20220108213650002](Go 语言学习.assets/image-20220108213650002.png)
+![image-20220108213650002](Golang_study.assets/image-20220108213650002.png)
 
 ### 6.4 标识符命名注意事项
 
@@ -358,7 +358,7 @@ var ptr *float32 = &a // 错误 类型不匹配
 
 除了保留关键字外，Go 还提供了 **36** 个预定的标识符，**其包括基础数据类型和系统内嵌函数**
 
-![image-20220108215006245](Go 语言学习.assets/image-20220108215006245.png)
+![image-20220108215006245](Golang_study.assets/image-20220108215006245.png)
 
 ## 7 运算符介绍
 
@@ -368,7 +368,7 @@ var ptr *float32 = &a // 错误 类型不匹配
 
 算数运算符是对数值类型的变量进行运算的，如下：
 
-![image-20220108215740415](Go 语言学习.assets/image-20220108215740415.png)
+![image-20220108215740415](Golang_study.assets/image-20220108215740415.png)
 
 ~~~ go
 // / 和 % 例子
@@ -399,9 +399,9 @@ fmt.Println(-10 % -3) // 1
    1. 赋值运算符就是将某个运算后的值，赋给指定的变量
 2. 赋值运算符的分类
 
-![image-20220108223504475](Go 语言学习.assets/image-20220108223504475.png)
+![image-20220108223504475](Golang_study.assets/image-20220108223504475.png)
 
-![image-20220108223603087](Go 语言学习.assets/image-20220108223603087.png)
+![image-20220108223603087](Golang_study.assets/image-20220108223603087.png)
 
 ### 7.3 比较运算符/ 关系运算符
 
@@ -412,11 +412,11 @@ fmt.Println(-10 % -3) // 1
 
 2. 一览
 
-   ![image-20220108222937322](Go 语言学习.assets/image-20220108222937322.png)
+   ![image-20220108222937322](Golang_study.assets/image-20220108222937322.png)
 
 3. 运算符优先级
 
-![image-20220108224317562](Go 语言学习.assets/image-20220108224317562.png)
+![image-20220108224317562](Golang_study.assets/image-20220108224317562.png)
 
 大致优先级如下：
 
@@ -440,11 +440,11 @@ fmt.Println(-10 % -3) // 1
 
 ### 7.5 位运算符
 
-![image-20220109165802023](Go 语言学习.assets/image-20220109165802023.png)
+![image-20220109165802023](Golang_study.assets/image-20220109165802023.png)
 
 ### 7.6 其他运算符
 
-![image-20220109114900754](Go 语言学习.assets/image-20220109114900754.png)
+![image-20220109114900754](Golang_study.assets/image-20220109114900754.png)
 
 键盘输入语句
 
@@ -3551,7 +3551,7 @@ func main() {
 
 文件在程序中是以流的形式来操作的
 
-![image-20220124222048678](Go 语言学习.assets/image-20220124222048678.png)
+![image-20220124222048678](Golang_study.assets/image-20220124222048678.png)
 
 流：数据在数据源（文件）和程序（内存）之间经历的路径
 
