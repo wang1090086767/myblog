@@ -4380,10 +4380,381 @@ func main() {
 
 ![image-20220203210444180](GolangStudy.assets/image-20220203210444180.png)
 
-1)分成两个部分来看
-2)原来的情况是MO主线程正在执行GO协程，另外有三个协程在队列等待
-3)如果GO协程阻塞，比如读取文件或者数据库等
-4)这时就会创建M1主线程(也可能是从已有的线程池中取出M1)，并且将等待的3个协程挂到M1下开始执行，M0的主线程下的GO仍然执行文件io的读写。
+1. 分成两个部分来看
+2. 原来的情况是MO主线程正在执行GO协程，另外有三个协程在队列等待
+3. 如果GO协程阻塞，比如读取文件或者数据库等
+4. 这时就会创建M1主线程(也可能是从已有的线程池中取出M1)，并且将等待的3个协程挂到M1下开始执行，M0的主线程下的GO仍然执行文件io的读写。
 
-5）这样的MPG调度模式，可以既让GO执行，同时也不会让队列的其它协程一直阻塞，仍然可以并发/并行执行。
-6)等到GO不阻塞了，M0会被放到空闲的主线程继续执行(从已有的线程池中取),同时GO又会被唤醒。
+5. 这样的MPG调度模式，可以既让GO执行，同时也不会让队列的其它协程一直阻塞，仍然可以并发/并行执行。
+6. 等到GO不阻塞了，M0会被放到空闲的主线程继续执行(从已有的线程池中取),同时GO又会被唤醒。
+
+#### 18.2.4 设置 Golang 运行的 cpu 数
+
+1. go1.8 后，默认让程序运行在多个核上，可以不用设置了
+2. go1.8 前，还是要设置一下，可以更高效的利用 cpu
+
+~~~ go
+package main
+
+import (
+	"fmt"
+	"runtime"
+)
+
+func main() {
+	cpuNum := runtime.NumCPU()
+	fmt.Println(cpuNum)
+
+	// 可以自己设置多个 cpu
+	// procs := runtime.GOMAXPROCS(cpuNum - 1)
+	runtime.GOMAXPROCS(cpuNum - 1)
+}
+~~~
+
+### 18.3 channel(管道)
+
+需求：现在要计算 1-200 的各个数的阶乘，并且把各个数的阶乘放入到map中。最后显示出来。要求使用goroutine完成
+分析思路：
+
+1. 使用goroutine 来完成，效率高，但是会出现**并发/并行安全问题.**
+
+2) 这里就提出了不同goroutine如何通信的问题
+
+代码实现
+
+1. 使用goroutine来完成(看看使用gorotine并发完成会出现什么问题？然后我们会去解决)
+
+2) 在运行某个程序时，如何知道是否存在资源竞争问题。 方法很简单，在编译该程序时，增加一个参数 -race即可 
+3) 代码实现
+
+问题
+
+1. 因为没有对全局变量 myMap 加锁，因此会出现资源争夺问题，代码会出现错误，提示 concurrent map writes
+2. 解决方案，加入互斥锁
+3. 我们的数的阶乘很大，结果会越界，可以将求阶乘改为 sum+=uint64(i)
+4. 代码改进，加互斥锁
+
+~~~ go
+package main
+
+import (
+	"fmt"
+	"sync"
+	"time"
+)
+
+//需求：现在要计算 1-200 的各个数的阶乘，并且把各个数的阶乘放入到map中。最后显示出来。要求使用goroutine完成
+//分析思路：
+
+// 思路
+// 1. 编写一个函数，来计算各个数的阶乘，并放入 map 中
+// 2. 我们启动的协程多个，统计的结果放入 map 中
+// 3. map应该做出一个全局的
+
+var (
+	myMap = make(map[int]uint64, 10)
+	// 声明一个全局的互斥锁
+	// lock 是一个全局的互斥锁
+	// sync 是包： synchornized 同步
+	// Mutex:是互斥的
+	lock sync.Mutex
+)
+
+func test(n int) {
+	var res uint64
+	res = 1
+	for i := 1; i <= n; i++ {
+		res *= uint64(i)
+	}
+
+	// 这里我们将 res 放入到 myMap 中
+	lock.Lock()
+	myMap[n] = res
+	lock.Unlock()
+}
+
+func main() {
+	// 我们这里开启多个协程完成任务
+	for i := 1; i <= 200; i++ {
+		go test(i)
+	}
+	time.Sleep(time.Second * 10)
+
+	lock.Lock()
+	// 输出结果，遍历结果
+	for k, v := range myMap {
+		fmt.Println(k, v)
+	}
+	lock.Unlock()
+}
+~~~
+
+多个协程共同操作 map 导致并发写的问题
+
+#### 18.3.1 不同 goroutine 之间如何通讯
+
+1. 全局变量加锁同步
+2. channel
+
+#### 18.3.2 chanel（管道）-基本介绍
+
+> 为什么需要 channel 
+>
+> 1. **主线程在等待所有 goroutine 全部完成的时间很难确定**
+> 2. 如果主线程休眠时间长了，会加长等待时间，如果等待时间断了，可能还有 goroutine 处于工作状态，这时也会随着主线程的退出而销毁
+> 3. 通过全局变量加锁同步来实现通讯，也并不利用多个协程对全局变量的读写操作
+> 4. 上面种种分析都在呼唤一个新的通讯机制-channel
+
+1. channel 本质就是一个数据结构-队列
+2. 数据是先进先出（**FIFO**:first in first out)
+3. 线程安全，多 goroutine 访问时，不需要加锁，就是说 channel 本身就是线程安全的
+4. channel 是有类型的，一个 string 的 channel 只能存放 string 类型数据
+
+#### 18.3.3 channel(管道) - 基本使用
+
+##### 定义/声明 channel
+
+~~~ go
+var 变量名 chan 数据类型
+// 举例
+var intChan chan int (intChan 用于存放 int 数据)
+var mapChan chan map[int]string(mapChan用于存放 map[int]string 类型)
+var perChan chan Person
+var perChan2 chan *Person
+~~~
+
+说明
+
+1. channel是引用类型
+2. channel 必须初始化才能写入数据，即 make 后才能使用
+3. 管道是有类型的，intChan只能写入整数 int
+
+##### channel 初始化
+
+说明：使用 make 进行初始化
+
+~~~ go
+var intChan chan int
+intChan = make(chan int, 10)
+~~~
+
+##### 向 channel 中写入（存放）数据
+
+~~~ go
+var intChan chan int
+intChan = make(chan int, 10)
+num := 99
+intChan <- 10
+intChan <- num
+
+~~~
+
+##### 从 channel 中取出数据
+
+~~~ go
+var intChan chan int
+intChan = make(chan int, 10)
+num := 99
+intChan <- 10
+intChan <- num
+x, ok := <- intChan  // ok 表示是否从管道中取出数据
+~~~
+
+
+
+##### 练习
+
+~~~ go
+package main
+
+import "fmt"
+
+func main() {
+	// 演示管道的使用
+	// 1. 创建一个可以存放 3 个 int 类型的管道
+	intChan := make(chan int, 3)
+
+	// 2. 看看 intChan 是什么
+	fmt.Println(intChan, &intChan)
+
+	// 3. 向管道写入数据
+	intChan <- 10
+	num := 211
+	intChan <- num
+
+	// 注意点，当我们给管道写入数据时,不能超过其容量
+	intChan <- 2
+	// 4. 看看管道的长度和 cap(容量)
+	fmt.Printf("channel len = %v  cap = %v \n", len(intChan), cap(intChan))
+
+	// 5. 从管道中读取数据
+	// var num2 int
+	// num2 = <-intChan
+	<-intChan
+	fmt.Println(<-intChan)
+	// 6. 在没有使用协程的情况下，如果我们的管道数据已经全部取出，在去就会报告 deadlock
+	<-intChan
+	<-intChan
+}
+~~~
+
+~~~ go
+package main
+
+import "fmt"
+
+type Cat struct {
+	Name string
+	Age  int
+}
+
+func main() {
+
+	// 定义一个存放任意数据类型的管道 3 个数据
+	allChan := make(chan interface{}, 3)
+	allChan <- 10
+	allChan <- "tom jack"
+	cat := Cat{"小花猫", 4}
+	allChan <- cat
+	// 我们希望获取到管道中的第三个元素，则先将前两个推出
+	<-allChan
+	<-allChan
+	newCat := <-allChan // 从管道取出的是 interface{} 需要使用类型断言转成 Cat
+
+	fmt.Printf("%T\n", newCat)
+	// 需要使用类型断言
+	fmt.Printf("newCat.Name=%v", newCat.(Cat).Name)
+
+}
+~~~
+
+
+
+#####  channel 使用的注意事项
+
+1. channel 中只能存放指定的数据类型
+2. channel 的数据放满后，就不能再放入了
+3. 如果从 channel 取出数据后，可以继续放入
+4. 在没有使用协程的情况下，如果 channel 数据取完了，再取，就会报 dead lock
+
+##### channel 的关闭
+
+使用内置函数 close 可以关闭 channel，当 channel 关闭后，就不能再向 channel 写数据了，但是仍然可以从该 channel 读取数据
+
+##### channel 的遍历
+
+channel 支持 for-range 的方式进行遍历，请注意两个细节
+
+1. 在遍历时，如果 channel 没有关闭，则会出现 deadlock 的错误
+2. 在遍历时，如果 channel 已经关闭，则会正常遍历数据，遍历完后，就会退出遍历
+
+~~~ go
+package main
+
+import "fmt"
+
+func main() {
+
+	// 创建管道
+	intChan := make(chan int, 100)
+
+	for i := 0; i < 100; i++ {
+		intChan <- i * 2 // 放入 100 个数据到管道
+	}
+
+	// 在遍历时，如果 channel 没有关闭，则会出现 deadlock 的错误
+	// 如果 channel 已经关闭，则会正常遍历数据，遍历完后，就会退出遍历
+	close(intChan)
+	for v := range intChan {
+		fmt.Println("v =", v)
+	}
+}
+~~~
+
+### 18.4 goroutine和 channel 结合
+
+#### 应用实例 1
+
+1. 开启一个 writeData 协程，向管道 intChan 中写入 50 个整数
+2. 开启一个 readData 协程，从管道 intChan 中读取 write 写入的数据
+3. 注意：writeData 和 readData操作的是同一个管道
+4. 主线程需要等待 writeData 和 readData 协程都完成工作才能退出【管道】
+
+~~~ go
+package main
+
+import "fmt"
+
+func writeData(intChan chan int) {
+	for i := 1; i <= 50; i++ {
+		// 放入数据
+		intChan <- i
+	}
+	close(intChan) // 关闭
+}
+
+// read data
+func readData(intChan chan int, exitChan chan bool) {
+
+	for {
+		v, ok := <-intChan
+
+		if !ok {
+			break
+		}
+
+		fmt.Printf("readData 读到数据 = %v \n", v)
+	}
+	// readData 读取完整数据 即任务完成
+	exitChan <- true
+	close(exitChan)
+}
+
+func main() {
+
+	// 创建两个管道
+	intChan := make(chan int, 50)
+	exitChan := make(chan bool, 1)
+
+	go readData(intChan, exitChan)
+	go writeData(intChan)
+
+	for {
+		v, ok := <-exitChan
+		if ok && v {
+			break
+		}
+	}
+}
+~~~
+
+#### 应用实例 2
+
+要求
+
+1. 启动一个协程，将 1-2000 的数放入到一个 channel 中，比如 numChan
+2. 启动 8 个协程，从 numChan 取出数（比如 n), 并计算 1 + ... + n 的值，并存放到 resChan
+3. 最后 8 个协程同完成工作后，再遍历 resChan，显示结果[如 res[1] = 1.. res[10] = 55]
+4. 注意： 考虑 resChan chan int 是否合适？
+
+代码
+
+~~~ go
+~~~
+
+
+
+#### 应用实例 3
+
+要求
+
+1. 开一个协程writeDataToFile， 随机生成 1000 个数据，存放到文件中
+2. 当writeDataToFile 完成写 1000个数据到文件后,让sort 协程从文件中读取 1000个文件，并完成排序，重新写入到另外一个文件
+3) 考察点：协程和管道+文件的综合使用
+4. 功能扩展：开 10 个协程writeDataToFile，每个协程随机生成 1000个数据，存放到10文件中
+5. 当 10个文件都生成了，让 10个sort 协程从 10文件中读取 1000 个文件，并完成排序，重新写入到 10 个结果文件
+
+~~~ go
+~~~
+
+
