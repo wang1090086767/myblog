@@ -4713,7 +4713,7 @@ func readData(intChan chan int, exitChan chan bool) {
 func main() {
 
 	// 创建两个管道
-	intChan := make(chan int, 50)
+	intChan := make(chan int, 10)
 	exitChan := make(chan bool, 1)
 
 	go readData(intChan, exitChan)
@@ -4728,6 +4728,10 @@ func main() {
 }
 ~~~
 
+问题：如果注销掉 go readData(intChan, exitChan), 程序会怎么样？
+
+答： 如果只是向管道写入数据，而没有读取，就会出现阻塞而 deadlock，原因是 intChan 容量是 10，而代码 writeData 会写入 50 个数据，因此会阻塞在 writeData 的 ch <- i。（如果编译器（运行）发现一个管道只有写，而没有读，则该管道会阻塞。写管道和读管道的频率不一致，无所谓）
+
 #### 应用实例 2
 
 要求
@@ -4740,6 +4744,68 @@ func main() {
 代码
 
 ~~~ go
+package main
+
+import (
+	"fmt"
+)
+
+func cal(numChan chan int, resChan chan string, exitChan chan bool) {
+
+	for {
+
+		num, ok := <-numChan
+		if !ok {
+			break
+		}
+
+		sum := (num * (1 + num)) >> 1
+		resChan <- fmt.Sprintf("res[%v]=%v", num, sum)
+	}
+
+	exitChan <- true
+}
+
+func writeData(numChan chan int) {
+	for i := 1; i <= 2000; i++ {
+		numChan <- i
+	}
+
+	close(numChan)
+}
+
+func main() {
+
+	numChan := make(chan int, 10)
+
+	resChan := make(chan string, 2000)
+
+	exitChan := make(chan bool, 8)
+
+	go writeData(numChan)
+
+	for i := 1; i <= 8; i++ {
+		go cal(numChan, resChan, exitChan)
+	}
+
+	go func() {
+		for i := 0; i < 8; i++ {
+			<-exitChan
+		}
+		close(resChan)
+	}()
+
+	for {
+		res, ok := <-resChan
+
+		if !ok {
+			break
+		}
+
+		fmt.Println(res)
+	}
+
+}
 ~~~
 
 
@@ -4757,4 +4823,192 @@ func main() {
 ~~~ go
 ~~~
 
+#### 应用实例 4
+
+需求：要求统计1-200000的数字中，哪些是素数？这个问题在本章开篇就提出了，现在我们有goroutine和channel的知识后，就可以完成了 [测试数据:80000]
+分析思路：
+
+传统的方法，就是使用一个循环，循环的判断各个数是不是素数。使用并发/并行的方式，**将统计素数的任务分配给多个（4个/goroutine去完成**，完成任务时间短。
+1.画出分析思路 2.代码实现
+说明：使用goroutine完成后，可以在使用传统的方法来统计一下，看看完成这个任务，各自耗费的时间是多少？[用map保存primeNum]
+
+~~~ go
+package main
+
+import (
+	"fmt"
+	"time"
+)
+
+func putNum(intChan chan int) {
+
+	for i := 1; i < 20000; i++ {
+		intChan <- i
+	}
+
+	close(intChan)
+}
+
+// 从 intChan 取出数据，并判断是否为素数， 如果是就放入 primeChan
+func primeNum(intChan chan int, primeChan chan int, exitChan chan bool) {
+
+	for {
+		// time.Sleep(5 * time.Millisecond)
+		num, ok := <-intChan
+
+		if !ok {
+			break
+		}
+		flag := true
+		for i := 2; i < num; i++ {
+			if num%i == 0 { // 说明该 num 不是素数
+				flag = false
+				break
+			}
+		}
+
+		if flag {
+			// 将这个数放入到 primeChan
+			primeChan <- num
+		}
+	}
+
+	fmt.Println("有一个 primeNum 协程因取不到数据，退出")
+	exitChan <- true
+}
+
+func main() {
+
+	intChan := make(chan int, 1000)
+	primeChan := make(chan int, 2000) // 放入结果
+	// 标识退出的管道
+	exitChan := make(chan bool, 4)
+	// 开启一个协程，向 intChan 放入 1 - 8000 个数
+
+	start := time.Now().Unix()
+	// go putNum(intChan)
+	go putNum(intChan)
+
+	for i := 0; i < 4; i++ {
+		go primeNum(intChan, primeChan, exitChan)
+	}
+
+	// 这里主线程进行处理
+	go func() {
+		for i := 0; i < 4; i++ {
+			<-exitChan
+		}
+
+		end := time.Now().Unix()
+		fmt.Println("使用协程耗时=", end-start)
+		close(primeChan)
+	}()
+
+	for {
+		res, ok := <-primeChan
+		if !ok {
+			break
+		}
+		fmt.Printf("素数=%d\n", res)
+	}
+
+	fmt.Println("main线程退出")
+}
+~~~
+
+#### channel 使用细节和注意事项
+
+1. channel 可以声明为只读，或者只写性质
+2. channel 只读和只写最佳实践案例
+
+~~~ go
+package main
+
+func main() {
+	// 管道可以声明为只读或者只写
+
+	// 1. 在默认情况下，管道是双向的
+	// var chan1 chan int // 可读可写
+
+	// 2. 声明为只写
+	var chan2 chan<- int
+	chan2 = make(chan int, 3)
+	chan2 <- 20
+	// 3. 声明为只读
+
+	var chan3 <-chan int
+	<-chan3
+
+	// 可读可写
+	var ch chan int
+	ch = make(chan int, 10)
+
+	go send(ch)
+	go receive(ch)
+}
+
+// 只写
+func send(ch chan<- int) {}
+// 只读
+func receive(ch <-chan int) {}
+
+~~~
+
+3. 使用 select 可以解决从管道取数据的阻塞问题
+
+   ~~~ go
+   package main
+   
+   import "fmt"
+   
+   func main() {
+   	// 使用 select 解决从管道读取数据的阻塞问题
+   
+   	// 1. 定义一个管道 10 个数据 int
+   	intChan := make(chan int, 10)
+   	for i := 0; i < 10; i++ {
+   		intChan <- i
+   	}
+   
+   	// 2. 定义一个管道 5 个数据 string
+   	stringChan := make(chan string, 5)
+   	for i := 0; i < 5; i++ {
+   		stringChan <- "hello" + fmt.Sprintf("%d", i)
+   	}
+   
+   	// 传统的方法在遍历管道时，如果不关闭会阻塞而导致 deadlock
+   
+   	// 问题， 在实际开发中，可能我们不好确定什么时候关闭该通道
+   	// 可以使用 select 方式可以解决
+   	for {
+   		select {
+   		// 注意： 这里，如果 intChan 一直没有关闭，不会一直阻塞 deadlock
+   		// 会自动到下一个 case 匹配
+   		case v := <-intChan:
+   			fmt.Println("从 intChan 读取的数据", v)
+   
+   		case v := <-stringChan:
+   			fmt.Println("从 stringChan 读取的数据", v)
+   		default:
+   			fmt.Println("不玩了")
+   			// 退出
+   			return 
+   		}
+   	}
+   }
+   ~~~
+
+   
+
+4. goroutine 中使用 recover，解决协程中出现 panic，导致程序崩溃的问题
+
+> 说明：如果我们起了一个协程，但是这个协程出现了panic，如果我们没有捕获这个panic,就会造成整个程序崩溃，这时我们可以在goroutine中使用recover来捕获panic, 进行处理，这样即使这个协程发生的问题，但是主线程仍然不受影响，可以继续执行。
+
+~~~ go
+defer func() {
+  if err := recover(); err != nil {
+    fmt.Println("发生错误", err)
+  }
+}
+~~~
 
