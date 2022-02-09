@@ -135,7 +135,7 @@ Golang的包、源文件和函数的关系简图：
 - Path： 指令 sdk\bin 目录 go、 gofmt、等
 - GOPATH： 就是 golang的工作目录，项目源码目录。
 
-## 4 Golang 中的变量
+## 4 Golang 中的变量和常量
 
 变量是程序的基本组成单位
 
@@ -270,6 +270,67 @@ Golang的包、源文件和函数的关系简图：
 3. 注意事项
 
    **在将 String 类型转成基本数据类型时，要确保 String 类型能够转成有效数据。若不能成功转换，则不会报异常，会使用目标对象的默认值**
+
+### 4.5 常量
+
+常量介绍
+
+1. 常量使用 const 修改
+
+2. 常量在定义的时候必须初始化
+
+3. 常量不能修改
+
+4. 常量只能修饰 bool、数值类型（int,float系列）、string 类型
+
+5. 语法： const identifier [type] = value
+
+6. 举例
+
+   ~~~ go
+   const name = "tom" // ok
+   const tax float64 = 0.8 // ok
+   const a int // error
+   const b = 9 / 3 // ok
+   const c = getVal() // err
+   ~~~
+
+常量使用注意事项
+
+1. 比较简洁的写法
+
+   ~~~ go
+   func main() {
+     const (
+     	a = 1
+       b = 2
+     )
+   }
+   ~~~
+
+   
+
+2. 专业写法
+
+   ~~~ go
+   func main() {
+     // 表示给 a 赋值为 0
+     // b 在 a 的基础上 + 1
+     // c 在 b 的基础上 + 1
+     // 注意是以换行递增
+     const (
+     	a = iota
+       b
+       c
+     )
+     fmt.Println(a, b, c) // 0, 1, 2 
+   }
+   ~~~
+
+3. Golang中没有变量名必须字母大写的规范
+4. 仍然通过首字母的大小写来控制常量的访问范围
+
+
 
 ## 5 指针介绍
 
@@ -5005,10 +5066,609 @@ func receive(ch <-chan int) {}
 > 说明：如果我们起了一个协程，但是这个协程出现了panic，如果我们没有捕获这个panic,就会造成整个程序崩溃，这时我们可以在goroutine中使用recover来捕获panic, 进行处理，这样即使这个协程发生的问题，但是主线程仍然不受影响，可以继续执行。
 
 ~~~ go
-defer func() {
-  if err := recover(); err != nil {
-    fmt.Println("发生错误", err)
+func test() {
+  defer func() {
+    if err := recover(); err != nil {
+      fmt.Println("发生错误", err)
+    }
   }
 }
 ~~~
 
+## 19 反射（Reflect）
+
+### 19.1 基本介绍
+
+1. 反射可以**在运行时动态获取变量的各种信息**，比如变量的类型(type)，类别(kind)
+2. 如果是结构体变量，还可以获取到结构体本身的信息（包括结构体的字段、方法）
+3. 通过反射，可以修改变量的值，可以调用关联的方法
+4. 使用反射，需要 import("reflect")
+
+### 19.2 反射的应用场景
+
+1. 不知道接口调用哪个函数，根据传入参数在运行时确定调用的具体接口，这种需要对函数或者方法反射。例如以下这种桥接模式
+
+   ~~~ go
+   func bridge(funcPtr interface{}, args ...interface{})
+   ~~~
+
+   第一个参数 funcPtr 以接口的形式传入函数指针，函数参数 args 以可变参数的形式传入，bridge 函数中可以用反射来动态执行 funcPtr 函数
+
+2. 对结构体序列化时，如果结构体有指定 Tag，也会使用到反射生成对应的字符串
+
+### 19.3 反射重要的函数和概念
+
+1. reflect.TypeOf(变量名)， 获取变量的类型， 返回 reflect.Type 类型
+
+2. reflect.ValueOf(变量名), 获取变量的值，返回 reflect.Value 类型，reflect.Value 是一个结构体类型。通过 reflect.Value可以获取到关于该变量的很多信息
+
+3. 变量、interface{}和 reflect.Value 是可以相互转换的，在实际开发中会经常使用到
+
+   ![image-20220206210249906](GolangStudy.assets/image-20220206210249906.png)
+
+   ~~~ go
+    // 专门用于反射
+   func test(b interface{}) {
+     // 1. 如何将 interface{} 转成 reflect.Value
+     rVal := reflect.ValueOf(b)
+     // 2. 如何将 reflect.Value -> interface
+     iVal := rVal.Interface()
+     // 3. 如何将 interface{} 转成原来的变量类型，使用类型断言
+     v := iVal.(Stu)
+   }
+   
+   func main() {
+     var student Stu
+     test(student)
+   }
+   ~~~
+
+### 19.4 反射注意事项和细节说明
+
+1. reflect.Value.Kind, 获取变量的类别，返回的是一个常量
+
+2. Type是类型，Kind 是类别，**Type 和 Kind 可能是相同的**，也可能是不同的
+
+   ~~~ go
+   // 比如
+   var num int = 10 // num 的 Type是 int, Kind也是 int
+   var stu Student // stu的 Type 是包名.Student, Kind是 struct
+   ~~~
+
+3. 通过反射可以让变量在 interface{} 和 Reflect.Value之间相互转换
+
+4. 使用反射的方式来获取变量的值（并返回对应的类型），要求数据类型匹配，比如 x 是 int，那么就应该使用 reflect.Value(x).Int(),而不能使用其他，否则报 panic
+
+5. 通过反射来修改变量，注意当使用 SetXxx方法来设置需要通过对应的指针类型来完成，这样才能改变传入的变量的值，同时需要使用到 reflect.Value.Elem()方法
+
+   ~~~ go
+   package main
+   
+   import (
+   	"fmt"
+   	"reflect"
+   )
+   
+   // 通过反射，修改
+   // num int 的值
+   // 修改 student 的值
+   
+   func reflect01(b interface{}) {
+   	// 2. 获取到 reflect.Value
+   	rVal := reflect.ValueOf(b)
+   
+   	// 看看 rVal 的 Kind 是
+   	fmt.Printf("rVal kind = %v\n", rVal.Kind())
+   	// 3. 通过反射改变值
+   	// Elem 返回 v 持有的接口保管的值的 Value 封装，或者 v 持有的指针指向的值的 Value 封装
+   	rVal.Elem().SetInt(20)
+   }
+   
+   func main() {
+   
+   	var num int = 10
+   	reflect01(&num)
+   	fmt.Println(num)
+   }
+   ~~~
+
+### 19.5 反射课堂练习
+
+1. 给你一个变量 var float64 = 1.2, 请使用反射来得到它的 reflect.Value, 然后获取对应的 Type， Kind 的值，并将 reflect.Value 转换成 interface{}, 再将 interface{} 转换成 float64
+
+2. 看段代码，判断是否正确，为什么？
+
+   ~~~ go
+   package main
+   import  (
+   	"fmt"
+     "reflect"
+   )
+   
+   func main() {
+     var str string = "tom"
+     fs := reflect.ValueOf(str)
+     fs.SetString("jack") // 运行时错误， 需要写成 fs.Elem().SetString("jack")
+     fmt.Printf("%v\n", str)
+   }
+   ~~~
+
+   
+
+### 19.6 反射最佳实践
+
+1. 使用反射来遍历结构体的字段，调用结构体的方法，并获取结构体标签的值
+
+   ~~~ go
+   func (v Value) Method(i int) Value // 默认按方法名排序对应 i 值， i 从 0 开始
+   func (v Value) Call(in []Value) []Value// 传入参数和返回参数是[]reflect.Value
+   
+   // 反射的 structtag的核心代码
+   tag := tye.Elem().Field(0).TagGet("json")
+   fmt.Printf("tag=%s\n", tag)
+   ~~~
+
+   ~~~ go
+   package main
+   
+   import (
+   	"fmt"
+   	"reflect"
+   )
+   
+   // 定义一个 Monster 结构体
+   type Monster struct {
+   	Name  string `json:"name"`
+   	Age   int    `json:"monster_age"`
+   	Score float32
+   	Sex   string
+   }
+   
+   // 方法， 显示 s 的值
+   func (s Monster) Print() {
+   	fmt.Println("----- start ----")
+   	fmt.Println(s)
+   	fmt.Println("----- end -----")
+   }
+   
+   // 方法， 返回两个数的和
+   func (s Monster) GetSum(n1, n2 int) int {
+   	return n1 + n2
+   }
+   
+   // 方法， 接收 四个值， 给 s 赋值
+   func (s Monster) Set(name string, age int, score float32, sex string) {
+   	s.Name = name
+   	s.Age = age
+   	s.Score = score
+   	s.Sex = sex
+   }
+   
+   func TestStruct(a interface{}) {
+   	// 获取 reflect.Type 类型
+   	typ := reflect.TypeOf(a)
+   	// 获取 reflect.Value类型
+   	val := reflect.ValueOf(a)
+   	// 获取到 a 对应的类别
+   	kd := val.Kind()
+   	// 如果传入的不是 struct，就退出
+   	if kd != reflect.Struct {
+   		fmt.Println("expect struct")
+   		return
+   	}
+   
+   	// 获取到该结构体有几个字段
+   	num := val.NumField()
+   
+   	fmt.Printf("struct has %d fields \n", num)
+   
+   	// 变量结构体的所有字段
+   
+   	for i := 0; i < num; i++ {
+   		fmt.Printf("Field %d: 值为 %v \n", i, val.Field(i))
+   		// 获取到 struct 标签，注意需要通过 reflect.Type 来获取 tag 标签的值
+   		tagVal := typ.Field(i).Tag.Get("json")
+   		if tagVal != "" {
+   			fmt.Printf("Field %d tag 为 %v \n", i, tagVal)
+   		}
+   	}
+   
+   	// 获取到该结构体有多少个方法
+   	numOfMethod := val.NumMethod()
+   
+   	fmt.Printf("struct has %d methods \n", numOfMethod)
+   
+   	for i := 0; i < numOfMethod; i++ {
+   		fmt.Println(val.Method(i).String())
+   	}
+   	// 方法的排序默认 是按照，(ASCII)码排序
+   	val.Method(1).Call(nil) // 获取到第二个方法，调用它
+   	// 调用结构体的第 1 个方法 Method(0)
+   	var params []reflect.Value
+   	params = append(params, reflect.ValueOf(10))
+   	params = append(params, reflect.ValueOf(40))
+   	res := val.Method(0).Call(params) // 传入的参数是[]reflect.Value
+   	fmt.Println("res=", res[0].Int()) // 返回结果，返回的结果是[]reflect.Value
+   
+   }
+   
+   func main() {
+   
+   	m := Monster{
+   		Name:  "牛魔王",
+   		Age:   18,
+   		Score: 22,
+   		Sex:   "男",
+   	}
+   
+   	TestStruct(m)
+   }
+   ~~~
+
+2. 使用反射的方式来获取结构体的 tag 标签，遍历字段的值，修改字段的值，调用结构体方法（要求：通过传递地址的方式完成）
+
+   ~~~ go
+   核心使用 reflect.Value.Elem().SetXxx()
+   ~~~
+
+3. 定义两个函数 test1和test2， 定义一个**适配器函数**用作统一处理接口
+
+   ~~~ go
+   package test
+   
+   import (
+   	"reflect"
+   	"testing"
+   )
+   // 使用传统的方式
+   func TestBridgeFunc(t *testing.T) {
+   
+   	test1 := func(v1, v2 int) {
+   		t.Log(v1, v2)
+   	}
+   
+   	test2 := func(v1, v2 int, s string) {
+   		t.Log(v1, v2, s)
+   	}
+   
+   	bridge := func(cal interface{}, args ...interface{}) {
+   		switch cal.(type) {
+   		case func(int, int):
+   			cal.(func(int, int))(args[0].(int), args[1].(int))
+   		}
+   	}
+   
+   	bridge(test1, 1, 2)
+   	bridge(test2, 1, 2, "test2")
+   }
+   
+   // 使用反射的方式
+   func TestReflectFunc(t *testing.T) {
+   	test1 := func(v1, v2 int) {
+   		t.Log(v1, v2)
+   	}
+   
+   	test2 := func(v1, v2 int, s string) {
+   		t.Log(v1, v2, s)
+   	}
+   
+   	bridge := func(cal interface{}, args ...interface{}) {
+   		inValue := []reflect.Value{}
+   		for _, v := range args {
+   			inValue = append(inValue, reflect.ValueOf(v))
+   		}
+   
+   		function := reflect.ValueOf(cal)
+   		function.Call(inValue)
+   	}
+   
+   	bridge(test1, 1, 3)
+   	bridge(test2, 3, 4, "test222")
+   
+   }
+   ~~~
+
+4. 使用反射操作任意结构体类型
+
+   ~~~ go
+   package apply03_test
+   
+   import (
+   	"reflect"
+   	"testing"
+   )
+   
+   func TestReflectStruct(t *testing.T) {
+   	type user struct {
+   		UserId string
+   		Name   string
+   	}
+   
+   	model := &user{}
+   	sv := reflect.ValueOf(model)
+   	t.Log("reflect.ValueOf", sv.Kind().String())
+   
+   	sv = sv.Elem()
+   	t.Log("reflect.ValueOf.Elem", sv.Kind().String())
+   	sv.FieldByName("UserId").SetString("123124")
+   	sv.FieldByName("Name").SetString("nickname")
+   	t.Log("model", model)
+   
+   }
+   
+   ~~~
+
+5. 使用反射创建并操作结构体
+
+   ~~~ go
+   package apply03_test
+   
+   import (
+   	"reflect"
+   	"testing"
+   )
+   
+   func TestReflectStruct(t *testing.T) {
+   	type user struct {
+   		UserId string
+   		Name   string
+   	}
+   
+   	var model *user
+   	st := reflect.TypeOf(model)                            // 获取类型 *user
+   	t.Log("reflect.ValueOf", st.Kind().String())           // ptr
+   	st = st.Elem()                                         //  st 指向的类型
+   	t.Log("reflect.ValueOf.Elem", st.Kind().String())      // struct
+   	elem := reflect.New(st)                                // New 返回一个 Value 类型值，该值持有一个指向类型为 typ 的新申请的零值的指针
+   	t.Log("reflect.New", elem.Kind().String())             // ptr
+   	t.Log("reflect.New.Elem", elem.Elem().Kind().String()) // struct
+   	// model 就是创建 user 结构体变量（实例）
+   	model = elem.Interface().(*user) // model 是 *user 它的指向和 elem 是一样的
+   	elem = elem.Elem()               // 获取 elem 指向的值
+   
+   	//model.Name = "xxxxx"
+   	//model.UserId = "1231232"
+   	elem.FieldByName("UserId").SetString("123124")
+   	elem.FieldByName("Name").SetString("nickname")
+   	t.Log("model", model)
+   }
+   ~~~
+
+## 20 网络编程
+
+### 20.1 网络编程基本介绍
+
+Golang的主要设计目标之一就是面向大规模后端服务程序，网络通信这块是服务端程序必不可少也是至关重要的一部分
+
+网络编程有两种：
+
+1. **TCP socket 编程**， 是网络编程的主流，之所以叫 Tcp socket 编程是因为底层是基于 Tcp/Ip 协议的
+2. b/s 结构的 **http 编程**，http 底层仍然是用 tcp socket 实现的
+
+### 20.2 协议（tcp/ip)
+
+TCP/IP(Transmission Control Protocol / Internet Protocol) 的简写，中文译名为传输控制协议/ 因特网互联协议，又叫网络通讯协议
+
+#### OSI 和 Tcp/ip 参考模型
+
+- 应用层（application) smtp,ftp,telnet,http
+- 传输层(transport) 解释数据
+- 网络层：(ip) 定位 ip 地址和确定连接路径
+- 链路层：(link)与硬件驱动对话
+
+### 20.3 端口
+
+端口范围 0 ~ 65535
+
+端口分类
+
+- 0 号是保留端口
+- 1-1024 是固定端口，又叫**有名端口**，即被某些程序固定使用，一般程序员不使用
+  - 22：SSH 远程登录协议
+  - 23：telnet 使用
+  - 21：ftp 使用
+  - 25：smtp 服务使用
+  - 80：iis 使用
+  - 7：echo 服务
+- 1025 ~ 65535 是动态端口，程序员可以使用
+
+#### 端口-使用注意
+
+1. 计算机（尤其是服务器）尽可能的少开端口
+2. 一个端口只能被一个程序监听
+3. 如果使用 netstat -an 可以查看本机有哪些端口在监听
+4. 可以使用 netstat -anb 来查看监听端口的 pid， 在结合任务管理器关闭不安全的端口
+
+### 20.4 tcp socket编程
+
+#### 服务端的处理流程
+
+1. 监听端口
+2. 接收客户端的 tcp 链接，建立客户端和服务端的链接
+3. 创建 **goroutine**， 处理该链接的请求（通常客户端会通过链接发送请求包）
+
+#### 客户端的处理流程
+
+1. 建立和服务端的链接
+2. 发送请求数据，接收服务端返回的结果数据
+3. 关闭链接
+
+#### 应用实例
+
+服务端功能
+
+1. 编写一个服务端程序，在 8888 端口监听
+2. 可以和多个客户端创建链接
+3. 链接成功后，客户端可以发送数据，服务端接受数据，并显示在终端上
+4. 使用 telnet 测试
+
+~~~ go
+package main
+
+import (
+	"fmt"
+	"net"
+)
+
+func process(conn net.Conn) {
+	// 延迟关闭连接
+	defer conn.Close()
+
+	for {
+		// 创建一个切片
+		buf := make([]byte, 1024)
+		// conn.Read(buf)
+		// 1. 等待客户端通过 conn 发送消息
+		// 2. 如果客户端没有 write[发送]，那么协程就阻塞在这里
+		fmt.Printf("服务端等待客户端 %s 发送消息\n", conn.RemoteAddr().String())
+		n, err := conn.Read(buf) // 从 conn 读取
+		if err != nil {
+			// fmt.Println("服务端的 Read err=", err)
+			fmt.Println("客户端退出， err =", err)
+			return
+		}
+		// 3. 显示客户端发送的内容到服务器的终端
+		fmt.Print(string(buf[:n]))
+	}
+
+}
+
+func main() {
+	listen, err := net.Listen("tcp", "0.0.0.0:8888")
+	fmt.Println("服务器开始监听...")
+	if err != nil {
+		fmt.Println("listen err=", err)
+		return
+	}
+
+	defer listen.Close() // 延时关闭
+
+	// 循环等待客户端连接
+	for {
+		fmt.Println("等待客户端来链接...")
+		conn, err := listen.Accept()
+		if err != nil {
+			fmt.Println("Accept(), err=", err)
+			continue
+		}
+		fmt.Printf("Accept() suc con=%v, 客户端 ip=%v \n", conn, conn.RemoteAddr().String())
+		// 开启 Go 协程
+		go process(conn)
+	}
+
+}
+~~~
+
+
+
+客户端功能
+
+1. 连接 服务端 8888 端口
+2. 客户端能通过终端输入数据（输入一行发送一行）并发送给服务器端[]
+3. 在终端输入 exit，表示退出程序
+
+~~~ go
+package main
+
+import (
+	"bufio"
+	"fmt"
+	"net"
+	"os"
+	"strings"
+)
+
+func main() {
+	conn, err := net.Dial("tcp", "localhost:8888")
+	if err != nil {
+		fmt.Println("连接失败")
+		return
+	}
+	// 延迟关闭连接
+	defer conn.Close()
+
+	fmt.Println("连接成功,", conn)
+
+	// 功能一， 客户端可以发送单行数据，然后就退出
+	reader := bufio.NewReader(os.Stdin) // os.Stdin 代表标准输入[终端]
+
+	for {
+		// 从终端读取一行用户输入，并准备发送给服务器
+		line, err := reader.ReadString('\n')
+
+		if err != nil {
+			fmt.Println("readString err=", err)
+		}
+
+		if strings.TrimRight(line, "\r\n") == "exit" {
+			fmt.Println("客户端退出!")
+			return
+		}
+
+		// 再将 line 发送给服务器
+		n, err := conn.Write([]byte(line))
+
+		if err != nil {
+			fmt.Println("conn.Write err=", err)
+		}
+		fmt.Printf("发送 %v 个字节数据\n", n)
+	}
+}
+~~~
+
+### 20.5 经典项目-海量用户即时通讯系统
+
+#### 需求分析
+
+1. 用户注册
+2. 用户登录
+3. 显示在线用户列表
+4. 群聊（广播）
+5. 点对点聊天
+6. 离线留言
+7. 使用 Redis 数据库
+
+#### 界面设计
+
+#### Redis 基本介绍
+
+1. Redis 是 NoSQL 数据库，不是传统的关系型数据库
+2. Redis: REmote DIctionary Server(远程字典服务器)， Redis 性能非常高，单机能够达到 15w qps， 通常适合做缓存，也可以持久化
+3. 是完全**开源免费**的，**高性能**的（key/value)**分布式内存数据库**，基于内存运行并**支持持久化**的 NoSQL 数据库，是最热门的 NoSql 数据库之一，也称为数据结构服务器
+
+[Redis 命令一览](http://redisdoc.com)
+
+#### Redis 数据类型和 CRUD
+
+> Redis的五大数据类型是：String(字符串)、Hash(哈希)、List(列表)、Set(集合)和 zset(sorted set：有序集合)
+
+##### String(字符串)
+
+String 是 redis 最基本的类型，一个 key 对应一个 value
+
+String类型是二进制安全的。除普通的字符串外，也可以存放图片等数据
+
+redis 中字符串 value 最大是 512M
+
+###### 操作
+
+1. setex(set with expire)键秒值
+2. mset[同时设置一个或多个 key-value 对]
+3. mget[同时获取多个 key-val]
+
+##### Hash(哈希，类似 golang 里的 Map)
+
+Redis hash 是一个键值对集合， var user1 map[string]string
+
+Redis hash 是一个 string 类型的 field 和 value 的映射表，hash 特别适合用于存储对象。
+
+#### Redis 的基本使用
+
+> 说明：Redis 安装好后，默认有 16 个数据库，初始默认使用 0 号库，标号为 0..15
+>
+> 1. 添加 key-val [set]
+> 2. 查看当前 redis 的所有 key[keys]
+> 3. 获取 key 对应的值[get key]
+> 4. 切换 redis 数据库[select index]
+> 5. 如何查看当前数据库的 key-val 数量[dbsize]
+> 6. 清空当前数据库的 key-val 和清空所有数据库的 key-val[flushdb, flushall]
