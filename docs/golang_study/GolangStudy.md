@@ -5651,6 +5651,7 @@ Redis 的 Set 是 string 类型的无序集合
 
 ``` go
 var pool *redis.Pool
+
 func init(){
   pool = &redis.Pool {
     MaxIdle: 8, // 最大空闲连接数
@@ -5661,6 +5662,8 @@ func init(){
    }
  }
 }
+
+
 func main() {
   c := pool.Get()
   defer pool.Close()
